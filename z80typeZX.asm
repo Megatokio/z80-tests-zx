@@ -1680,13 +1680,14 @@ MSGRUI		DB	' ZX Port 2025 Rui Ribeiro', 0DH
 MSGCRLF		DB	0DH,'$'	; Carriage return + end of string
 
 ; Debug mode messages (raw test results)
-MSGRAWCMOS	DB	'Raw results:       CMOS: $'
+MSGRAWCMOS	DB	'Raw results:'
+		DB	0Dh,' CMOS: $'
 MSGFLAGS	DB	'XF/YF flags test:  $'
-MSGRAWU880	DB	' U880: $'
-MSGRAWXY	DB	' XF/YF: $'
+MSGRAWU880	DB	0Dh,' U880: $'
+MSGRAWXY	DB	0Dh,' XF/YF: $'
 
 ; Main detection result header
-MSGCPUTYPE	DB	'Detected CPU type: $'
+MSGCPUTYPE	DB	0Dh,'Detected CPU type: $'
 
 ; U880 CPU detection results
 MSGU880NEW	DB	'Newer MME U880, Thesys Z80, Microelectronica MMN 80CPU$'
