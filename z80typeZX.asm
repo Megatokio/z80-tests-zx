@@ -18,11 +18,10 @@
 ; **WARNING: without this snippet, a PRINT must be made *before*
 ; calling this program if called from the machine prompt.
 ;
-; 10 CLEAR 31231
-; 20 POKE 23610,255
-; 30 LOAD ""CODE 
+; 10 CLEAR 23999
+; 30 LOAD ""CODE 24000
 ; 40 BORDER 7:PAPER 7:INK 0:CLS:PRINT
-; 50 RANDOMIZE USR 31232
+; 50 RANDOMIZE USR 24000
 ; 60 PAUSE 0
 ;
 ;==============================================================================
@@ -79,10 +78,10 @@ TMX_CTRL_PORT	EQU 0FFh; Timex Sinclair control port (TS2068 extra video modes, e
 KBD_HROW_3      EQU 0FBh	; Keyboard half-row 3: Q, W, E, R, T
 KBD_HROW_8      EQU 07Fh	; Keyboard half-row 8: B, N, M, Symbol Shift, Space
 
-	; Set program origin to 7A00H (31232 decimal)
+	; Set program origin to 24000
 	; lower RAM so it runs in older 16KB ZX Spectrum models
-	; if writing new code, beware of not going past 7FFF
-ORIGIN		EQU 7A00H
+	; code must not exceed 7FFF for 16k ZX Spectrum models
+ORIGIN		EQU 24000
 
 	ORG     ORIGIN		; lower 16KB
 
