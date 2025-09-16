@@ -10,7 +10,7 @@
 ;       WITH ZILOG Z80 AND COMPATIBLE PROCESSORS
 ;
 ; AUTO-DETECTS AND USES PORT FOR TESTS:
-;            AY AY-3-891x/YM2149F REGISTER 1 (0FFFDh/0BFFDh)
+;            AY AY-3-891x/YM2149F REGISTER 0 (0FFFDh/0BFFDh)
 ;            TIMEX CONTROL REGISTER (0xFF)
 ;            ULA (0xFE)
 ;
@@ -70,7 +70,8 @@ BORDCR		EQU 5C48h
 
 ULA_PORT        EQU 0FEh	; ZX Spectrum ULA port: border color, MIC/EAR, and keyboard scanning
 AY_ADDR_PORT    EQU 0FFFDh	; AY-3-8912 PSG address port
-AY_DATA_PORT    EQU 0BFFDh    	; AY-3-8912 PSG data port
+AY_DATA_PORT    EQU 0BFFDh    	; AY-3-8912 PSG data port (writing)
+AY_READ_PORT	EQU AY_ADDR_PORT; AY-3-8912 PSG data port (reading)
 
 ; port 0FFh half decoded. 
 TMX_CTRL_PORT	EQU 0FFh; Timex Sinclair control port (TS2068 extra video modes, etc.)
@@ -535,24 +536,23 @@ LEAVEZX:
 ; 
 ; WHY AY WORKS AS A TEST LATCH:
 ; • AY registers retain written values (latch behavior)
-; • Register 1 (tone period) accepts a value
+; • Register 0 (tone period) accepts a value
 ; • Can write and read back values reliably  
 ; • Non-audio registers are perfect for data storage testing
 ; 
 ; REGISTER SELECTION RATIONALE:
-; • Register 1 = Tone Generator B Fine Tune
+; • Register 0 = Tone Generator A Fine Tune
 ; • Non-critical for audio (won't cause audio artifacts during test)
 ; • Reliable read/write characteristics across different AY variants
 ; • YM2149 compatible (common in later Spectrum models)
 ; 
 ; TEST METHODOLOGY:
-; 1. Select AY register 1 via address latch (0xFFFD)
+; 1. Select AY register 0 via address latch (0xFFFD)
 ; 2. Write test value using OUT (C),0 via data port (0xBFFD) 
 ;    - NMOS: writes 0x00 to register
 ;    - CMOS: writes 0xFF to register  
 ; 3. Read back value from same register
-; 4. and 0xf due to AY internal register storage limitations
-; 5. Compare: 0x00 indicates NMOS, non-zero indicates CMOS
+; 4. Compare: 0x00 indicates NMOS, non-zero indicates CMOS
 ; 
 ; AY CHIP VARIANTS SUPPORTED:
 ; • General Instrument AY-3-8912 (original, 8-bit data bus)
@@ -565,38 +565,21 @@ LEAVEZX:
 ; CMOS: OUT (C),0 writes 0xFF to register → read back 0x0F (masked to 4 bits)	
 TESTCMOSAY:
 	ld bc,AY_ADDR_PORT	; AY register select port FFFD (address latch)
-	ld a,1            	; Select AY register 1 (tone generator B fine tune)
-				; Register 1 is chosen because it is non-critical for sound
-				; and reliably latches values across AY-3-8912/YM2149F variants
+	ld a,0            	; Select AY register 0 (tone generator A fine tune)
+				; Register 0 is chosen because it latches all 8 bits
+				; reliably across AY-3-8912/YM2149F variants
 	out (c),a		; Send register number to AY address latch
 
-	ld b,0BFh		; Switch to AY data port 0BFFDh
+	ld bc,AY_DATA_PORT	; Switch to AY data port 0BFFDh
 	DB      0EDH, 071H      ; UNDOCUMENTED OUT (C),<0|0FFH> INSTRUCTION
                                 ; NMOS writes 0x00, CMOS writes 0xFF to AY register
 
-
-	in a,(c)         	; gets the stored value from port 0BFFDh
-				; Read back the value from AY register 1
+	ld bc,AY_READ_PORT	; reading AY register is from port FFFD (same as register select)
+	in a,(c)         	; gets the stored value from port 0FFFDh
+				; Read back the value from AY register 0
 				; VALUE WRITTEN BY OUT (C),<0|0FFH> INSTRUCTION
-				; AY register only stores 4 or 5 bits (AY-3-8912: 4 bits, YM2149: 5 bits)
-				; so AND 0x0F is necessary for reliable detection across AY/YM variants
 
-	and     0x0f		; AY register masks to 4 bits (0x0F max)
-				; but can go up to 1fh if YM2149
-				; ultimately not much relevant as we care most
-                         	; about 0 and not 0
-				; CRITICAL: Due to OUT (C),0 binary nature:
-				; NMOS result: 0x00 & 0x0F = 0x00 (always)
-				; CMOS result: 0xFF & 0x0F = 0x0F (always) 
-				; Only these two values are possible - no intermediate results
-
-	jr      z,NMOS		; If 0x00, it's NMOS
-
-	ld      a,0ffh		; If 0x0F (non-zero), it's CMOS
-
-NMOS: 	
-
-	ret
+	ret			; a=0 => NMOS, a=0FFh => CMOS, else broken AY chip
 
 ; === CMOS Detection Method 3: Timex Control Register Test ===
 ; TIMEX HARDWARE ARCHITECTURE: Uses port 0xFF as a memory banking/video control register
@@ -1473,42 +1456,39 @@ TMXDETECT:
 ;   │ (Address Latch) │    │ (Data Port)     │    │ Working         │
 ;   └─────────────────┘    └─────────────────┘    └─────────────────┘
 ;
-; WHY REGISTER 1 IS USED:
-; • Register 1 = Tone Generator B Fine Tune 
+; WHY REGISTER 0 IS USED:
+; • Register 0 = Tone Generator A Fine Tune
 ; • Non-critical register (won't affect audio during brief test)
 ; • Reliable read/write on all AY variants (AY-3-8912, YM2149F, clones)
-; • Full data retention capability (perfect for latch testing)
+; • Stores full byte (8 bits)
 ;
 ; TEST PATTERN SELECTION:
-; • 0x0F chosen as safe maximum value for most AY registers
-; • Ensures we're not writing invalid data that might be ignored
-; • Clear non-zero pattern that's easy to verify on readback
-; • Compatible with both AY-3-8912 (4-bit) and YM2149F (5-bit) limits
+; • 55h contains a fair mixture of 0 and 1 bits, but not 000b (black) or 111b (white)
+; • 00h or 0FFh may be read frequently by chance
+; • other values may only be read by chance during screen file display time
 ;
 ; Test method: Write a known value to an AY register and read it back.
 ; If the value matches, an AY chip is present.
 ISAY:   
 	LD      BC,AY_ADDR_PORT	; BC = AY-3-8912 register select port FFFD 
 				; (address latch)
-	LD      A,01h		; Select AY register 1 (tone generator B fine tune)
+	LD      A,0		; Select AY register 0 (tone generator A fine tune)
 	OUT     (C),A		; Send register number to AY address latch
 				; This selects which internal register to access
         
-	LD      B,0BFh		; BC = AY data port 0BFFDh (keeping C=0xFD)
+	LD      BC,AY_DATA_PORT	; BC = AY data port 0BFFDh
 				; Port address changes: 0xFFFD → 0xBFFD
-	LD      A,0Fh		; A = test pattern 0x0F 
-				; (safe maximum for compatibility)
-	OUT     (C),A		; Write test data to selected AY register 1
+	LD      A,55h		; A = test pattern 55h
+	OUT     (C),A		; Write test data to selected AY register 0
 				; If AY present: value stored in internal latch
 				; If no AY: write goes nowhere (no storage)
         
-	LD      B,0FFh		; BC = back to register select port 0xFFFD
-				; Must re-select register before reading
-	IN      A,(C)		; A = data read back from AY register 1
-				; If AY present: returns stored 0x0F value
+	LD      BC,AY_READ_PORT	; read port is same as register select port 0xFFFD
+	IN      A,(C)		; A = data read back from AY register 0
+				; If AY present: returns stored 55h value
 				; If no AY: returns bus noise/floating values
 
-	CP      0Fh		; Does readback match our test pattern exactly?
+	CP      55h		; Does readback match our test pattern exactly?
 	JR      NZ,HYSTE	; If different values → no AY chip, test for Hysteresis
         
 	INC     E		; AY chip detected: E = 1 
@@ -1517,7 +1497,7 @@ ISAY:
 
 ; ALTERNATIVE AY DETECTION METHODS CONSIDERED:
 ; • Could test multiple registers, but single register sufficient
-; • Could use different test patterns, but 0x0F is safest
+; • Could use different test patterns, but 0x55 is safest
 ; • Could test register value limits, but adds complexity
 ; • This simple method works reliably across all AY variants
 
