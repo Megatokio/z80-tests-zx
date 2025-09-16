@@ -1,2 +1,3 @@
 .DS_Store
-z80typeZX.lst
+*.lst
+._*
