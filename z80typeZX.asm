@@ -1712,5 +1712,5 @@ MSGCMOSUNKNOWN	DB	'Unknown CMOS Z80 clone$'
 MESBW		DB	'Press B-black W-white border'
 		DB	0DH, 0DH,'$' ; Double newline for spacing
 
-	END	ORIGIN	; Program ends here, execution starts at 7C00H
+;	END	ORIGIN	; Program ends here, execution starts at 7C00H
 
