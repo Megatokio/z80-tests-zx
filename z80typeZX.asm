@@ -464,6 +464,9 @@ NORESTORE:
 ; NMOS: OUT (C),0 outputs 0x00 → bits 2-0 = 000 → black border (color 0)
 ; CMOS: OUT (C),0 outputs 0xFF → bits 2-0 = 111 → white border (color 7)
 TESTCMOSZX:
+	ld	de,MSGUSINGBORDER
+	CALL	PRINTSTR
+	
 	LD	DE,MESBW	; DE -> "Press B-black W-white border"
 	CALL	PRINTSTR	; Display instruction to user
 
@@ -563,6 +566,9 @@ LEAVEZX:
 ; NMOS: OUT (C),0 writes 0x00 to register → read back 0x00
 ; CMOS: OUT (C),0 writes 0xFF to register → read back 0x0F (masked to 4 bits)	
 TESTCMOSAY:
+	ld de,MSGUSINGAY
+	call PRINTSTR
+	
 	ld bc,AY_ADDR_PORT	; AY register select port FFFD (address latch)
 	ld a,0            	; Select AY register 0 (tone generator A fine tune)
 				; Register 0 is chosen because it latches all 8 bits
@@ -641,6 +647,9 @@ TESTCMOSAY:
 ; Uses Timex 2048/2068 control register for CMOS detection
 	
 TESTCMOSTMX:
+	ld de,MSGUSINGTIMEX
+	call PRINTSTR
+	
 ;	ld bc,0ff00h+TMX_CTRL_PORT ; Set BC to port address for OUT (C),0 instruction
 	ld c,TMX_CTRL_PORT	; Set C to port address for OUT (C),0 instruction (port is half-decoded)
 				; $FF port is half decoded
@@ -744,6 +753,8 @@ leavetmx:
 ;   Improves reliability by electrical averaging.
 ;------------------------------------------------------------
 TESTCMOSHYST:
+	ld de,MSGUSINGULA
+	call PRINTSTR
 
 ; ULA Schmitt Trigger Rate-Dependent Hysteresis Exploit
 ; easier to catch feeding values in the waiting loop
@@ -1673,8 +1684,8 @@ YFCOUNT		DW	0	; 16-bit counter for YF flag occurrences
 ; All strings are terminated with ' character for PRINTSTR routine
 
 ; Program identification and credits
-MSGSIGNIN	DB	'Z80 Processor Type Detection (C) 2024 Sergey Kiselev'
-		DB	0DH	; Carriage return
+MSGSIGNIN	DB	'Z80 Processor Type Detection',0DH	
+		DB	' (C) 2024 Sergey Kiselev',0DH	
 MSGRUI		DB	' ZX Port 2025 Rui Ribeiro', 0DH
 MSGCRLF		DB	0DH,'$'	; Carriage return + end of string
 
@@ -1684,6 +1695,10 @@ MSGRAWCMOS	DB	'Raw results:'
 MSGFLAGS	DB	'XF/YF flags test:  $'
 MSGRAWU880	DB	0Dh,' U880: $'
 MSGRAWXY	DB	0Dh,' XF/YF: $'
+MSGUSINGAY	DB	"using AY chip",0Dh,'$'
+MSGUSINGTIMEX	DB	"using TIMEX control register",0Dh,'$'
+MSGUSINGULA	DB	"using ULA threshold",0Dh,'$'
+MSGUSINGBORDER	DB	"using border color test",0Dh,'$'
 
 ; Main detection result header
 MSGCPUTYPE	DB	0Dh,'Detected CPU type: $'
